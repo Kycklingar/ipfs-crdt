@@ -15,7 +15,7 @@ import (
 type ipfs struct {
 	api     string
 	subject string
-	client  *http.Client
+	client  *http.Client // TODO: Check if there is a client timeout limt
 }
 
 type psMessage struct {
@@ -26,11 +26,10 @@ type psMessage struct {
 }
 
 func NewIpfsObject(api string) ipfs {
-	return ipfs{api: api + "/api/v0/"}
+	return ipfs{api: api + "/api/v0/", client: &http.Client{}}
 }
 
 func (i *ipfs) Sub(ch chan psMessage, name string) {
-	i.client = &http.Client{}
 	i.subject = name
 
 	res, err := i.client.Get(fmt.Sprintf(i.api+"pubsub/sub?arg=%s", i.subject))
@@ -55,30 +54,24 @@ func (i *ipfs) Sub(ch chan psMessage, name string) {
 	}
 }
 
-func (i *ipfs) Cat(hash string) *data {
+func (i *ipfs) Cat(hash string) string {
 	if len(hash) < 48 {
-		return nil
+		return ""
 	}
 	res, err := i.client.Get(fmt.Sprintf(i.api+"cat?arg=%s", hash))
 	if err != nil {
 		fmt.Println(err)
-		return nil
+		return ""
 	}
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		fmt.Println(err)
-		return nil
+		return ""
 	}
-	var d data
-	for _, str := range strings.Split(string(body), " ") {
-		if strings.TrimSpace(str) == "" {
-			continue
-		}
-		d.multihash = append(d.multihash, strings.TrimSpace(str))
-	}
-	return &d
+
+	return string(body)
 }
 
 func (i *ipfs) Publish(hash string) bool {

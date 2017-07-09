@@ -1,25 +1,100 @@
 package main
 
-import "sync"
+import (
+	"errors"
+	"fmt"
+	"strconv"
+	"sync"
+)
 
 type crdt interface {
-	add(interface{})
-	query(interface{}) bool
+	add(crdtData)
+	query(crdtData) bool
 	compare(crdt) bool
 	merge(crdt) crdt
 }
 
 type data struct {
-	multihash []string
-	mutex     sync.Mutex
+	data  []crdtData
+	mutex sync.Mutex
+}
+
+type postData struct {
+	Hash string
+	Size int
+}
+
+type tagData struct {
+	PostHash string
+	Tag      string
+}
+
+type crdtData interface {
+	string() string
+	set(...interface{}) error
+	same(crdtData) bool
+}
+
+func (c *postData) string() string {
+	return fmt.Sprintf("{POST[%s,%d]}", c.Hash, c.Size)
+}
+
+func (c *postData) set(vars ...interface{}) error {
+	if len(vars) < 2 || len(vars) > 2 {
+		return errors.New("invalid argument")
+	}
+
+	//TODO: Verify the content
+
+	if _, ok := vars[1].(string); ok {
+		var err error
+		c.Size, err = strconv.Atoi(vars[1].(string))
+		if err != nil {
+			return err
+		}
+	} else {
+		c.Size = vars[1].(int)
+	}
+
+	c.Hash = vars[0].(string)
+	return nil
+}
+
+func (c *postData) same(a crdtData) bool {
+	if _, ok := a.(*postData); !ok {
+		return false
+	}
+	return c.Hash == a.(*postData).Hash && c.Size == a.(*postData).Size
+}
+
+func (c *tagData) string() string {
+	return fmt.Sprintf("{TAG[%s,%s]}", c.PostHash, c.Tag)
+}
+
+func (c *tagData) set(vars ...interface{}) error {
+	if len(vars) < 2 || len(vars) > 2 {
+		return errors.New("invalid argument")
+	}
+
+	//TODO: Verify the content
+	c.PostHash = vars[0].(string)
+	c.Tag = vars[1].(string)
+	return nil
+}
+
+func (c *tagData) same(a crdtData) bool {
+	if _, ok := a.(*tagData); !ok {
+		return false
+	}
+	return c.PostHash == a.(*tagData).PostHash && c.Tag == a.(*tagData).Tag
 }
 
 func createData() *data {
-	var d = &data{make([]string, 0), sync.Mutex{}}
+	var d = &data{make([]crdtData, 0), sync.Mutex{}}
 	return d
 }
 
-func (d *data) add(p interface{}) {
+func (d *data) add(p crdtData) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -27,13 +102,13 @@ func (d *data) add(p interface{}) {
 		return
 	}
 
-	d.multihash = append(d.multihash, p.(string))
+	d.data = append(d.data, p)
 }
 
-func (d *data) query(a interface{}) bool {
-	if d.multihash != nil {
-		for _, str := range d.multihash {
-			if str == a {
+func (d *data) query(a crdtData) bool {
+	if d.data != nil {
+		for _, data := range d.data {
+			if data.same(a) {
 				return true
 			}
 		}
@@ -43,10 +118,10 @@ func (d *data) query(a interface{}) bool {
 
 func (d *data) compare(ai crdt) bool {
 	a := ai.(*data)
-	if len(d.multihash) != len(a.multihash) {
+	if len(d.data) != len(a.data) {
 		return false
 	}
-	for _, dx := range d.multihash {
+	for _, dx := range d.data {
 		if !a.query(dx) {
 			return false
 		}
@@ -58,9 +133,9 @@ func (d *data) merge(ai crdt) crdt {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	a := ai.(*data)
-	for _, ax := range a.multihash {
+	for _, ax := range a.data {
 		if !d.query(ax) {
-			d.multihash = append(d.multihash, ax)
+			d.data = append(d.data, ax)
 		}
 	}
 
