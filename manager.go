@@ -20,9 +20,9 @@ func newManager() *idManager {
 	return &m
 }
 
-func (m *idManager) listen() {
+func (m *idManager) listen(channel string) {
 	ch := make(chan psMessage)
-	go m.ipfs.Sub(ch, "test")
+	go m.ipfs.Sub(ch, channel)
 
 	time.Sleep(time.Millisecond * 1000)
 
