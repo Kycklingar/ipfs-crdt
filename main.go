@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
 	"html/template"
 	"log"
@@ -16,18 +17,23 @@ var db *sql.DB
 func main() {
 	//DB.InitDB()
 
-	port := "80"
-	if len(os.Args) >= 2 {
-		port = os.Args[1]
+	port := flag.Int("port", 80, "Local webserver port")
+	channel := flag.String("ch", "test", "Channel to listen on")
+	help := *flag.Bool("help", false, "Prints help text")
+	flag.Parse()
+
+	if help {
+		flag.PrintDefaults()
+		os.Exit(1)
 	}
 
 	idM = newManager()
-	go idM.listen()
+	go idM.listen(*channel)
 
 	http.HandleFunc("/", indexHandler)
 	http.HandleFunc("/post", postHandler)
 
-	log.Fatal(http.ListenAndServe(fmt.Sprintf("localhost:%s", port), nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf("localhost:%d", *port), nil))
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -39,14 +45,21 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		<body>
 			<a href="/post">Post Hash</a>
 			<h1>CRDT Content</h1>
+			<h3>Channel {{.Channel}}</h3>
 			<h4>Current Hash: {{.Hash}}</h4>
 			<ul>
 				{{range .Content}}
 					<li>
-						<img width="250px" src="http://localhost:8080/ipfs/{{.Post.Hash}}">
-						{{range .Tags}}
-							<li>{{.}}</li>
-						{{end}}
+						<div>
+							<span><img width="250px" src="http://localhost:8080/ipfs/{{.Post.Hash}}"></span>
+							<span>
+								<ul>
+								{{range .Tags}}
+									<li>{{.}}</li>
+								{{end}}
+								</ul>
+							</span>
+						</div>
 					</li>
 				{{end}}
 			</ul>
@@ -66,6 +79,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	type p struct {
 		Hash    string
+		Channel string
 		Content []post
 	}
 
@@ -89,7 +103,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tmpl.Execute(w, p{Hash: idM.currentHash, Content: c})
+	tmpl.Execute(w, p{Hash: idM.currentHash, Channel: idM.ipfs.subject, Content: c})
 }
 
 func postHandler(w http.ResponseWriter, r *http.Request) {
