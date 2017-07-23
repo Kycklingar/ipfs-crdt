@@ -51,6 +51,9 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 			<h1>CRDT Content</h1>
 			<h3>Channel {{.Channel}}</h3>
 			<h4>Current Hash: {{.Hash}}</h4>
+			<form action="/db/populate">
+				<input type="submit" value="Populate DB">
+			</form>
 			<ul>
 				{{range .Content}}
 					<li>

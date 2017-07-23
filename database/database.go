@@ -65,7 +65,7 @@ func NewHash(db *sql.DB, hash string) error {
 }
 
 func LatestHash(db *sql.DB) (hash string) {
-	db.QueryRow("SELECT hash FROM hash_history ORDER BY timestamp").Scan(&hash)
+	db.QueryRow("SELECT hash FROM hash_history ORDER BY timestamp DESC LIMIT 1").Scan(&hash)
 	return
 }
 
