@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -21,7 +21,6 @@ type data struct {
 
 type postData struct {
 	Hash string
-	Size int
 }
 
 type tagData struct {
@@ -36,27 +35,31 @@ type crdtData interface {
 }
 
 func (c *postData) string() string {
-	return fmt.Sprintf("{POST[%s,%d]}", c.Hash, c.Size)
+	return fmt.Sprintf("{POST[%s]}", c.Hash)
 }
 
 func (c *postData) set(vars ...interface{}) error {
-	if len(vars) < 2 || len(vars) > 2 {
-		return errors.New("invalid argument")
+	if len(vars) < 1 || len(vars) > 1 {
+		return errors.New(fmt.Sprintf("invalid argument: ", vars...))
 	}
 
 	//TODO: Verify the content
 
-	if _, ok := vars[1].(string); ok {
-		var err error
-		c.Size, err = strconv.Atoi(vars[1].(string))
-		if err != nil {
-			return err
-		}
-	} else {
-		c.Size = vars[1].(int)
-	}
+	// if _, ok := vars[1].(string); ok {
+	// 	var err error
+	// 	c.Size, err = strconv.Atoi(vars[1].(string))
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// } else {
+	// 	c.Size = vars[1].(int)
+	// }
 
-	c.Hash = vars[0].(string)
+	hash := vars[0].(string)
+	if len(hash) < 46 || len(hash) > 49 {
+		return errors.New("incorrect hash")
+	}
+	c.Hash = hash
 	return nil
 }
 
@@ -64,7 +67,7 @@ func (c *postData) same(a crdtData) bool {
 	if _, ok := a.(*postData); !ok {
 		return false
 	}
-	return c.Hash == a.(*postData).Hash && c.Size == a.(*postData).Size
+	return c.Hash == a.(*postData).Hash
 }
 
 func (c *tagData) string() string {
@@ -77,8 +80,8 @@ func (c *tagData) set(vars ...interface{}) error {
 	}
 
 	//TODO: Verify the content
-	c.PostHash = vars[0].(string)
-	c.Tag = vars[1].(string)
+	c.PostHash = strings.TrimSpace(vars[0].(string))
+	c.Tag = strings.TrimSpace(vars[1].(string))
 	return nil
 }
 

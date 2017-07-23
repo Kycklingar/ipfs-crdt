@@ -1,4 +1,4 @@
-package database
+package crdtdb
 
 import (
 	"database/sql"
@@ -30,8 +30,7 @@ func update(db *sql.DB) {
 	str := `
 		CREATE TABLE IF NOT EXISTS posts(
 			id INTEGER PRIMARY KEY,
-			hash VARCHAR(49) UNIQUE NOT NULL,
-			size INTEGER NOT NULL
+			hash VARCHAR(49) UNIQUE NOT NULL
 		);
 		
 		CREATE TABLE IF NOT EXISTS tags(
@@ -46,6 +45,12 @@ func update(db *sql.DB) {
 			FOREIGN KEY(tag_id) REFERENCES tags(id)
 			CONSTRAINT post_tags_unique UNIQUE(post_id, tag_id)
 		);
+
+		CREATE TABLE IF NOT EXISTS hash_history(
+			id INTEGER PRIMARY KEY,
+			hash VARCHAR(49) UNIQUE NOT NULL,
+			timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+		)
 	`
 
 	_, err := db.Exec(str)
@@ -54,36 +59,101 @@ func update(db *sql.DB) {
 	}
 }
 
-func InsertPost(db *sql.DB, hash string, size int, tags []string) error {
-	if size <= 0 {
-		return errors.New("size is zero")
-	}
+func NewHash(db *sql.DB, hash string) error {
+	_, err := db.Exec("INSERT OR IGNORE INTO hash_history(hash) VALUES($1)", hash)
+	return err
+}
 
+func LatestHash(db *sql.DB) (hash string) {
+	db.QueryRow("SELECT hash FROM hash_history ORDER BY timestamp").Scan(&hash)
+	return
+}
+
+func PostCount(db *sql.DB) int {
+	var count int
+	db.QueryRow("SELECT count(1) FROM posts").Scan(&count)
+	return count
+}
+
+func MappingsCount(db *sql.DB) int {
+	var count int
+	db.QueryRow("SELECT count(1) FROM post_tag_mapping").Scan(&count)
+	return count
+}
+
+func InsertPost(db *sql.DB, hash string) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return txError(tx, err)
 	}
-
-	r, err := tx.Exec("INSERT INTO posts(hash, size) VALUES($1, $2)", hash, size)
+	_, err = tx.Exec("INSERT OR IGNORE INTO posts(hash) VALUES($1)", hash)
 	if err != nil {
 		return txError(tx, err)
 	}
 
-	i64, err := r.LastInsertId()
+	return tx.Commit()
+}
+
+type Post struct {
+	ID   int
+	Hash string
+	Tags []string
+}
+
+func GetPosts(db *sql.DB) ([]Post, error) {
+	rows, err := db.Query("SELECT id, hash FROM posts")
 	if err != nil {
-		return txError(tx, err)
+		return nil, err
 	}
+	defer rows.Close()
 
-	postID := int(i64)
-
-	for _, tag := range tags {
-		err := mapTagToPost(tx, postID, tag)
+	var posts []Post
+	for rows.Next() {
+		var p Post
+		rows.Scan(&p.ID, &p.Hash)
 		if err != nil {
-			return txError(tx, err)
+			return nil, err
 		}
+		rws, err := db.Query("SELECT tag_id FROM post_tag_mapping WHERE post_id=$1", p.ID)
+		if err != nil {
+			return nil, err
+		}
+		defer rws.Close()
+		for rws.Next() {
+			var tagID int
+			err = rws.Scan(&tagID)
+			if err != nil {
+				return nil, err
+			}
+			var tag string
+			err = db.QueryRow("SELECT tag FROM tags WHERE id=$1", tagID).Scan(&tag)
+			if err != nil {
+				return nil, err
+			}
+			p.Tags = append(p.Tags, tag)
+		}
+		posts = append(posts, p)
+	}
+	return posts, nil
+}
+
+func AppendTagToPost(db *sql.DB, tag, postHash string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	var postID int
+	err = tx.QueryRow("SELECT id FROM posts WHERE hash=$1", postHash).Scan(&postID)
+	if err != nil {
+		return txError(tx, err)
 	}
 
-	return nil
+	err = mapTagToPost(tx, postID, tag)
+	if err != nil {
+		return txError(tx, err)
+	}
+
+	return tx.Commit()
 }
 
 func mapTagToPost(tx *sql.Tx, postID int, tag string) error {
@@ -101,9 +171,9 @@ func mapTagToPost(tx *sql.Tx, postID int, tag string) error {
 	if postID <= 0 || tagID <= 0 {
 		return errors.New("post or tag is zero")
 	}
-	_, err = tx.Exec("INSERT INTO OR IGNORE post_tag_mapping(post_id, tag_id) VALUES($1, $2)", postID, tagID)
+	_, err = tx.Exec("INSERT OR IGNORE INTO post_tag_mapping(post_id, tag_id) VALUES($1, $2)", postID, tagID)
 
-	return nil
+	return err
 }
 
 func txError(tx *sql.Tx, err error) error {

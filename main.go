@@ -9,13 +9,15 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	DB "github.com/kycklingar/ipfs-crdt/database"
 )
 
 var idM *idManager
 var db *sql.DB
 
 func main() {
-	//DB.InitDB()
+	db = DB.InitDB()
 
 	port := flag.Int("port", 80, "Local webserver port")
 	channel := flag.String("ch", "test", "Channel to listen on")
@@ -28,10 +30,12 @@ func main() {
 	}
 
 	idM = newManager()
+	idM.Init()
 	go idM.listen(*channel)
 
 	http.HandleFunc("/", indexHandler)
 	http.HandleFunc("/post", postHandler)
+	http.HandleFunc("/db/populate", populateDBHandler)
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("localhost:%d", *port), nil))
 }
@@ -51,7 +55,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 				{{range .Content}}
 					<li>
 						<div>
-							<span><img width="250px" src="http://localhost:8080/ipfs/{{.Post.Hash}}"></span>
+							<span><img width="250px" src="http://localhost:8080/ipfs/{{.Hash}}"></span>
 							<span>
 								<ul>
 								{{range .Tags}}
@@ -72,37 +76,17 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type post struct {
-		Post postData
-		Tags []string
-	}
-
 	type p struct {
 		Hash    string
 		Channel string
-		Content []post
+		Content []DB.Post
 	}
 
-	var c []post
-
-	cd := idM.d.data
-	for _, d := range cd {
-		if _, ok := d.(*postData); ok {
-			pd := *d.(*postData)
-			var p post
-			p.Post = pd
-			c = append(c, p)
-		} else if _, ok := d.(*tagData); ok {
-			td := *d.(*tagData)
-			for i, cu := range c {
-				if cu.Post.Hash == td.PostHash {
-					c[i].Tags = append(cu.Tags, td.Tag)
-					break
-				}
-			}
-		}
+	c, err := DB.GetPosts(db)
+	if err != nil {
+		fmt.Fprintln(w, err)
+		return
 	}
-
 	tmpl.Execute(w, p{Hash: idM.currentHash, Channel: idM.ipfs.subject, Content: c})
 }
 
@@ -135,7 +119,7 @@ func postHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var pd postData
-	err := pd.set(post, 1000)
+	err := pd.set(post)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -157,4 +141,35 @@ func postHandler(w http.ResponseWriter, r *http.Request) {
 	idM.add(cd...)
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func populateDBHandler(w http.ResponseWriter, r *http.Request) {
+	idM.d.mutex.Lock()
+	defer idM.d.mutex.Unlock()
+
+	tagCount := DB.MappingsCount(db)
+	postCount := DB.PostCount(db)
+
+	for _, d := range idM.d.data {
+		switch v := d.(type) {
+		case *postData:
+			err := DB.InsertPost(db, v.Hash)
+			if err != nil {
+				fmt.Fprintln(w, err)
+			}
+		case *tagData:
+			err := DB.AppendTagToPost(db, v.Tag, v.PostHash)
+			if err != nil {
+				fmt.Fprintln(w, err)
+			}
+		default:
+			fmt.Println("error")
+		}
+	}
+
+	newTagCount := DB.MappingsCount(db)
+	newPostCount := DB.PostCount(db)
+
+	fmt.Fprintln(w, "New posts: ", newPostCount-postCount)
+	fmt.Fprintln(w, "New tags: ", newTagCount-tagCount)
 }
