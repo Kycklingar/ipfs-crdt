@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,8 +37,12 @@ func (m *idManager) listen(channel string) {
 
 	time.Sleep(time.Millisecond * 1000)
 
-	for !m.ask() {
+	for i := 0; !m.ask(); i++ {
 		fmt.Println("Ask failed. Retrying")
+		if i >= 9 {
+			fmt.Println("Aborting. Did you forget to run the daemon with --enable-pubsub-experiment?")
+			os.Exit(0)
+		}
 		time.Sleep(time.Millisecond * 1000)
 	}
 
@@ -79,9 +86,14 @@ func (m *idManager) cmp(hash string) data {
 		switch dat := strings.Split(data[1], ","); data[0] {
 		case "POST":
 			var p postData
-			err := p.set(dat[0])
+			i, err := strconv.Atoi(dat[1])
 			if err != nil {
-				fmt.Println(err)
+				log.Print(err)
+				continue
+			}
+			err = p.set(dat[0], i)
+			if err != nil {
+				log.Print(err)
 				continue
 			}
 			d = &p
@@ -92,7 +104,7 @@ func (m *idManager) cmp(hash string) data {
 			var t tagData
 			err := t.set(dat[0], dat[1])
 			if err != nil {
-				fmt.Println(err)
+				log.Print(err)
 				continue
 			}
 			d = &t

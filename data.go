@@ -21,6 +21,7 @@ type data struct {
 
 type postData struct {
 	Hash string
+	Size int
 }
 
 type tagData struct {
@@ -35,11 +36,11 @@ type crdtData interface {
 }
 
 func (c *postData) string() string {
-	return fmt.Sprintf("{POST[%s]}", c.Hash)
+	return fmt.Sprintf("{POST[%s,%d]}", c.Hash, c.Size)
 }
 
 func (c *postData) set(vars ...interface{}) error {
-	if len(vars) < 1 || len(vars) > 1 {
+	if len(vars) < 2 || len(vars) > 2 {
 		return errors.New(fmt.Sprintf("invalid argument: ", vars...))
 	}
 
@@ -55,11 +56,17 @@ func (c *postData) set(vars ...interface{}) error {
 	// 	c.Size = vars[1].(int)
 	// }
 
-	hash := vars[0].(string)
-	if len(hash) < 46 || len(hash) > 49 {
+	hash, ok := vars[0].(string)
+	if !ok || len(hash) < 46 || len(hash) > 49 {
 		return errors.New("incorrect hash")
 	}
 	c.Hash = hash
+
+	size, ok := vars[1].(int)
+	if !ok || size <= 0 {
+		return errors.New("size not defined")
+	}
+	c.Size = size
 	return nil
 }
 
@@ -67,7 +74,7 @@ func (c *postData) same(a crdtData) bool {
 	if _, ok := a.(*postData); !ok {
 		return false
 	}
-	return c.Hash == a.(*postData).Hash
+	return c.Hash == a.(*postData).Hash && c.Size == a.(*postData).Size
 }
 
 func (c *tagData) string() string {

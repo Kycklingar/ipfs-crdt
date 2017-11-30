@@ -30,7 +30,8 @@ func update(db *sql.DB) {
 	str := `
 		CREATE TABLE IF NOT EXISTS posts(
 			id INTEGER PRIMARY KEY,
-			hash VARCHAR(49) UNIQUE NOT NULL
+			hash VARCHAR(49) UNIQUE NOT NULL,
+			size int NOT NULL
 		);
 		
 		CREATE TABLE IF NOT EXISTS tags(
@@ -71,7 +72,7 @@ func LatestHash(db *sql.DB) (hash string) {
 
 func PostCount(db *sql.DB) int {
 	var count int
-	db.QueryRow("SELECT count(1) FROM posts").Scan(&count)
+	db.QueryRow("SELECT count() FROM posts").Scan(&count)
 	return count
 }
 
@@ -81,13 +82,14 @@ func MappingsCount(db *sql.DB) int {
 	return count
 }
 
-func InsertPost(db *sql.DB, hash string) error {
+func InsertPost(db *sql.DB, hash string, size int) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return txError(tx, err)
 	}
-	_, err = tx.Exec("INSERT OR IGNORE INTO posts(hash) VALUES($1)", hash)
+	_, err = tx.Exec("INSERT OR IGNORE INTO posts(hash, size) VALUES($1, $2)", hash, size)
 	if err != nil {
+		log.Print(err)
 		return txError(tx, err)
 	}
 
@@ -97,11 +99,12 @@ func InsertPost(db *sql.DB, hash string) error {
 type Post struct {
 	ID   int
 	Hash string
+	Size int
 	Tags []string
 }
 
 func GetPosts(db *sql.DB) ([]Post, error) {
-	rows, err := db.Query("SELECT id, hash FROM posts")
+	rows, err := db.Query("SELECT id, hash, size FROM posts")
 	if err != nil {
 		return nil, err
 	}
@@ -110,12 +113,14 @@ func GetPosts(db *sql.DB) ([]Post, error) {
 	var posts []Post
 	for rows.Next() {
 		var p Post
-		rows.Scan(&p.ID, &p.Hash)
+		err = rows.Scan(&p.ID, &p.Hash, &p.Size)
 		if err != nil {
+			log.Print(err)
 			return nil, err
 		}
 		rws, err := db.Query("SELECT tag_id FROM post_tag_mapping WHERE post_id=$1", p.ID)
 		if err != nil {
+			log.Print(err)
 			return nil, err
 		}
 		defer rws.Close()
@@ -123,11 +128,13 @@ func GetPosts(db *sql.DB) ([]Post, error) {
 			var tagID int
 			err = rws.Scan(&tagID)
 			if err != nil {
+				log.Print(err)
 				return nil, err
 			}
 			var tag string
 			err = db.QueryRow("SELECT tag FROM tags WHERE id=$1", tagID).Scan(&tag)
 			if err != nil {
+				log.Print(err)
 				return nil, err
 			}
 			p.Tags = append(p.Tags, tag)
@@ -140,16 +147,19 @@ func GetPosts(db *sql.DB) ([]Post, error) {
 func AppendTagToPost(db *sql.DB, tag, postHash string) error {
 	tx, err := db.Begin()
 	if err != nil {
+		log.Print(err)
 		return err
 	}
 	var postID int
 	err = tx.QueryRow("SELECT id FROM posts WHERE hash=$1", postHash).Scan(&postID)
 	if err != nil {
+		log.Print(err)
 		return txError(tx, err)
 	}
 
 	err = mapTagToPost(tx, postID, tag)
 	if err != nil {
+		log.Print(err)
 		return txError(tx, err)
 	}
 
@@ -162,6 +172,7 @@ func mapTagToPost(tx *sql.Tx, postID int, tag string) error {
 	if err != nil {
 		r, err := tx.Exec("INSERT INTO tags(tag) VALUES($1)", tag)
 		if err != nil {
+			log.Print(err)
 			return err
 		}
 		i64, _ := r.LastInsertId()
@@ -178,7 +189,7 @@ func mapTagToPost(tx *sql.Tx, postID int, tag string) error {
 
 func txError(tx *sql.Tx, err error) error {
 	er := tx.Rollback()
-	if err != nil {
+	if er != nil {
 		log.Fatal(er, err)
 	}
 	return err

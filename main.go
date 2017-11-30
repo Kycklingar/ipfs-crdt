@@ -17,14 +17,15 @@ var idM *idManager
 var db *sql.DB
 
 func main() {
+	log.SetFlags(log.Llongfile)
 	db = DB.InitDB()
 
 	port := flag.Int("port", 80, "Local webserver port")
 	channel := flag.String("ch", "test", "Channel to listen on")
-	help := *flag.Bool("help", false, "Prints help text")
+	help := flag.Bool("help", false, "Prints help text")
 	flag.Parse()
 
-	if help {
+	if *help {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -59,6 +60,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 					<li>
 						<div>
 							<span><img width="250px" src="http://localhost:8080/ipfs/{{.Hash}}"></span>
+							<p>{{.Size}}B</p>
 							<span>
 								<ul>
 								{{range .Tags}}
@@ -121,8 +123,14 @@ func postHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	stat, err := idM.ipfs.ObjectStat(post)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	var pd postData
-	err := pd.set(post)
+	err = pd.set(post, stat.DataSize)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -156,7 +164,7 @@ func populateDBHandler(w http.ResponseWriter, r *http.Request) {
 	for _, d := range idM.d.data {
 		switch v := d.(type) {
 		case *postData:
-			err := DB.InsertPost(db, v.Hash)
+			err := DB.InsertPost(db, v.Hash, v.Size)
 			if err != nil {
 				fmt.Fprintln(w, err)
 			}

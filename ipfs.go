@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"strings"
@@ -15,7 +16,15 @@ import (
 type ipfs struct {
 	api     string
 	subject string
-	client  *http.Client // TODO: Check if there is a client timeout limt
+	client  *http.Client
+}
+
+type stat struct {
+	NumLinks       int `json:"NumLinks"`
+	BlockSize      int `json:"BlockSize"`
+	LinksSize      int `json:"LinksSize"`
+	DataSize       int `json:"DataSize"`
+	CumulativeSize int `json:"CumulativeSize"`
 }
 
 type psMessage struct {
@@ -72,6 +81,34 @@ func (i *ipfs) Cat(hash string) string {
 	}
 
 	return string(body)
+}
+
+func (i *ipfs) ObjectStat(hash string) (stat, error) {
+	var st stat
+
+	if len(hash) < 48 {
+		return st, fmt.Errorf("incorrect hash %s", hash)
+	}
+	res, err := i.client.Get(fmt.Sprintf(i.api+"object/stat?arg=%s", hash))
+	if err != nil {
+		log.Print(err)
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Print(err)
+		return st, err
+	}
+
+	err = json.Unmarshal(body, &st)
+	if err != nil {
+		log.Print(err)
+		return st, err
+	}
+
+	return st, nil
+
 }
 
 func (i *ipfs) Publish(hash string) bool {
