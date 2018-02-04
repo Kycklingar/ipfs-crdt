@@ -131,7 +131,7 @@ func postHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var pd postData
-	err = pd.set(post, stat.DataSize)
+	err = pd.set(post, stat.CumulativeSize)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
