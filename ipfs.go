@@ -16,6 +16,7 @@ import (
 type ipfs struct {
 	api     string
 	subject string
+	id      string
 	client  *http.Client
 }
 
@@ -34,8 +35,32 @@ type psMessage struct {
 	TopicIDs []string `json:"topicIDs"`
 }
 
-func NewIpfsObject(api string) ipfs {
-	return ipfs{api: api + "/api/v0/", client: &http.Client{}}
+func NewIpfsObject(api string) (ipfs, error) {
+	ip := ipfs{api: api + "/api/v0/", client: &http.Client{}}
+	res, err := ip.client.Get(ip.api + "id")
+	if err != nil {
+		log.Print(err)
+		return ip, err
+	}
+	defer res.Body.Close()
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Print(err)
+		return ip, err
+	}
+
+	m := make(map[string]interface{})
+
+	err = json.Unmarshal(b, &m)
+	if err != nil {
+		log.Print(err)
+		return ip, err
+	}
+
+	ip.id = m["ID"].(string)
+
+	fmt.Println(ip.id)
+	return ip, nil
 }
 
 func (i *ipfs) Sub(ch chan psMessage, name string) {
@@ -86,7 +111,7 @@ func (i *ipfs) Cat(hash string) string {
 func (i *ipfs) ObjectStat(hash string) (stat, error) {
 	var st stat
 
-	if len(hash) < 48 {
+	if len(hash) < 46 {
 		return st, fmt.Errorf("incorrect hash %s", hash)
 	}
 	res, err := i.client.Get(fmt.Sprintf(i.api+"object/stat?arg=%s", hash))

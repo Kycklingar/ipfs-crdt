@@ -19,9 +19,12 @@ type idManager struct {
 
 func newManager() *idManager {
 	var m idManager
+	var err error
 	m.d = createData()
-	m.ipfs = NewIpfsObject("http://localhost:5001")
-
+	m.ipfs, err = NewIpfsObject("http://localhost:5001")
+	if err != nil {
+		log.Fatal(err)
+	}
 	return &m
 }
 
