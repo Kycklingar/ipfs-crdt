@@ -3,14 +3,15 @@ package crdtdb
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"log"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func InitDB() *sql.DB {
-	db, err := sql.Open("sqlite3", "db.sqlite3")
+func InitDB(channel string) *sql.DB {
+	db, err := sql.Open("sqlite3", fmt.Sprintf("%s.sqlite3", channel))
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -18,7 +18,6 @@ var db *sql.DB
 
 func main() {
 	log.SetFlags(log.Llongfile)
-	db = DB.InitDB()
 
 	port := flag.Int("port", 80, "Local webserver port")
 	channel := flag.String("ch", "test", "Channel to listen on")
@@ -29,6 +28,8 @@ func main() {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
+
+	db = DB.InitDB(*channel)
 
 	idM = newManager()
 	idM.Init()
