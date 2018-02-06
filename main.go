@@ -124,14 +124,19 @@ func postHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stat, err := idM.ipfs.ObjectStat(post)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	// stat, err := idM.ipfs.ObjectStat(post)
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
 
-	var pd postData
-	err = pd.set(post, stat.CumulativeSize)
+	var pd compactPost
+	var data = []interface{}{post}
+
+	for _, t := range strings.Split(tags, ",") {
+		data = append(data, t)
+	}
+	err := pd.set(data...)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -140,15 +145,15 @@ func postHandler(w http.ResponseWriter, r *http.Request) {
 	var cd []crdtData
 	cd = append(cd, &pd)
 
-	for _, t := range strings.Split(tags, ",") {
-		td := tagData{}
-		err = td.set(post, t)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		cd = append(cd, &td)
-	}
+	// for _, t := range strings.Split(tags, ",") {
+	// 	td := tagData{}
+	// 	err = td.set(post, t)
+	// 	if err != nil {
+	// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// 	cd = append(cd, &td)
+	// }
 
 	idM.add(cd...)
 
@@ -164,15 +169,23 @@ func populateDBHandler(w http.ResponseWriter, r *http.Request) {
 
 	for _, d := range idM.d.data {
 		switch v := d.(type) {
-		case *postData:
-			err := DB.InsertPost(db, v.Hash, v.Size)
+		// case *postData:
+		// 	err := DB.InsertPost(db, v.Hash, v.Size)
+		// 	if err != nil {
+		// 		fmt.Fprintln(w, err)
+		// 	}
+		// case *tagData:
+		// 	err := DB.AppendTagToPost(db, v.Tag, v.PostHash)
+		// 	if err != nil {
+		// 		fmt.Fprintln(w, err)
+		// 	}
+		case *compactPost:
+			err := DB.InsertPost(db, v.Hash, 0)
 			if err != nil {
 				fmt.Fprintln(w, err)
 			}
-		case *tagData:
-			err := DB.AppendTagToPost(db, v.Tag, v.PostHash)
-			if err != nil {
-				fmt.Fprintln(w, err)
+			for _, tag := range v.Tags {
+				err = DB.AppendTagToPost(db, tag, v.Hash)
 			}
 		default:
 			fmt.Println("error")

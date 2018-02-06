@@ -1,9 +1,6 @@
 package main
 
 import (
-	"errors"
-	"fmt"
-	"strings"
 	"sync"
 )
 
@@ -19,85 +16,87 @@ type data struct {
 	mutex sync.Mutex
 }
 
-type postData struct {
-	Hash string
-	Size int
-}
+// type postData struct {
+// 	Hash string
+// 	Size int
+// }
 
-type tagData struct {
-	PostHash string
-	Tag      string
-}
+// type tagData struct {
+// 	PostHash string
+// 	Tag      string
+// }
 
 type crdtData interface {
 	string() string
 	set(...interface{}) error
 	same(crdtData) bool
+	id() string
+	smash(crdtData) crdtData
 }
 
-func (c *postData) string() string {
-	return fmt.Sprintf("{POST[%s,%d]}", c.Hash, c.Size)
-}
+// func (c *postData) string() string {
+// 	return fmt.Sprintf("{POST[%s,%d]}", c.Hash, c.Size)
+// }
 
-func (c *postData) set(vars ...interface{}) error {
-	if len(vars) < 2 || len(vars) > 2 {
-		return errors.New(fmt.Sprintf("invalid argument: ", vars...))
-	}
+// func (c *postData) set(vars ...interface{}) error {
+// 	if len(vars) < 2 || len(vars) > 2 {
+// 		return errors.New(fmt.Sprintf("invalid argument: ", vars...))
+// 	}
 
-	//TODO: Verify the content
+// 	//TODO: Verify the content
 
-	// if _, ok := vars[1].(string); ok {
-	// 	var err error
-	// 	c.Size, err = strconv.Atoi(vars[1].(string))
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// } else {
-	// 	c.Size = vars[1].(int)
-	// }
+// 	// if _, ok := vars[1].(string); ok {
+// 	// 	var err error
+// 	// 	c.Size, err = strconv.Atoi(vars[1].(string))
+// 	// 	if err != nil {
+// 	// 		return err
+// 	// 	}
+// 	// } else {
+// 	// 	c.Size = vars[1].(int)
+// 	// }
 
-	hash, ok := vars[0].(string)
-	if !ok || len(hash) < 46 || len(hash) > 49 {
-		return errors.New("incorrect hash")
-	}
-	c.Hash = hash
+// 	hash, ok := vars[0].(string)
+// 	if !ok || len(hash) < 46 || len(hash) > 49 {
+// 		return errors.New("incorrect hash")
+// 	}
+// 	c.Hash = hash
 
-	size, ok := vars[1].(int)
-	if !ok || size <= 0 {
-		return errors.New("size not defined")
-	}
-	c.Size = size
-	return nil
-}
+// 	size, ok := vars[1].(int)
+// 	if !ok || size <= 0 {
+// 		return errors.New("size not defined")
+// 	}
+// 	c.Size = size
+// 	return nil
+// }
 
-func (c *postData) same(a crdtData) bool {
-	if _, ok := a.(*postData); !ok {
-		return false
-	}
-	return c.Hash == a.(*postData).Hash && c.Size == a.(*postData).Size
-}
+// func (c *postData) same(a crdtData) bool {
+// 	if _, ok := a.(*postData); !ok {
+// 		return false
+// 	}
+// 	return c.Hash == a.(*postData).Hash && c.Size == a.(*postData).Size
+// }
 
-func (c *tagData) string() string {
-	return fmt.Sprintf("{TAG[%s,%s]}", c.PostHash, c.Tag)
-}
+// func (c *tagData) string() string {
+// 	return fmt.Sprintf("{TAG[%s,%s]}", c.PostHash, c.Tag)
+// }
 
-func (c *tagData) set(vars ...interface{}) error {
-	if len(vars) < 2 || len(vars) > 2 {
-		return errors.New("invalid argument")
-	}
+// func (c *tagData) set(vars ...interface{}) error {
+// 	if len(vars) < 2 || len(vars) > 2 {
+// 		return errors.New("invalid argument")
+// 	}
 
-	//TODO: Verify the content
-	c.PostHash = strings.TrimSpace(vars[0].(string))
-	c.Tag = strings.TrimSpace(vars[1].(string))
-	return nil
-}
+// 	//TODO: Verify the content
+// 	c.PostHash = strings.TrimSpace(vars[0].(string))
+// 	c.Tag = strings.TrimSpace(vars[1].(string))
+// 	return nil
+// }
 
-func (c *tagData) same(a crdtData) bool {
-	if _, ok := a.(*tagData); !ok {
-		return false
-	}
-	return c.PostHash == a.(*tagData).PostHash && c.Tag == a.(*tagData).Tag
-}
+// func (c *tagData) same(a crdtData) bool {
+// 	if _, ok := a.(*tagData); !ok {
+// 		return false
+// 	}
+// 	return c.PostHash == a.(*tagData).PostHash && c.Tag == a.(*tagData).Tag
+// }
 
 func createData() *data {
 	var d = &data{make([]crdtData, 0), sync.Mutex{}}
@@ -109,10 +108,19 @@ func (d *data) add(p crdtData) {
 	defer d.mutex.Unlock()
 
 	if d.query(p) {
+		d.smash(p)
 		return
 	}
 
 	d.data = append(d.data, p)
+}
+
+func (d *data) smash(a crdtData) {
+	for i, _ := range d.data {
+		if d.data[i].same(a) {
+			d.data[i] = d.data[i].smash(a)
+		}
+	}
 }
 
 func (d *data) query(a crdtData) bool {

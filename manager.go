@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -87,30 +86,41 @@ func (m *idManager) cmp(hash string) data {
 			continue
 		}
 		switch dat := strings.Split(data[1], ","); data[0] {
-		case "POST":
-			var p postData
-			i, err := strconv.Atoi(dat[1])
-			if err != nil {
-				log.Print(err)
-				continue
+		// case "POST":
+		// 	var p postData
+		// 	i, err := strconv.Atoi(dat[1])
+		// 	if err != nil {
+		// 		log.Print(err)
+		// 		continue
+		// 	}
+		// 	err = p.set(dat[0], i)
+		// 	if err != nil {
+		// 		log.Print(err)
+		// 		continue
+		// 	}
+		// 	d = &p
+		// case "TAG":
+		// 	if len(dat) < 2 || len(dat) > 2 {
+		// 		continue
+		// 	}
+		// 	var t tagData
+		// 	err := t.set(dat[0], dat[1])
+		// 	if err != nil {
+		// 		log.Print(err)
+		// 		continue
+		// 	}
+		// 	d = &t
+		case "CPOST":
+			var p compactPost
+			i := []interface{}{}
+			for _, m := range dat {
+				i = append(i, m)
 			}
-			err = p.set(dat[0], i)
-			if err != nil {
-				log.Print(err)
+			if err := p.set(i...); err != nil {
+				log.Println(err)
 				continue
 			}
 			d = &p
-		case "TAG":
-			if len(dat) < 2 || len(dat) > 2 {
-				continue
-			}
-			var t tagData
-			err := t.set(dat[0], dat[1])
-			if err != nil {
-				log.Print(err)
-				continue
-			}
-			d = &t
 		}
 		cData.data = append(cData.data, d)
 	}
