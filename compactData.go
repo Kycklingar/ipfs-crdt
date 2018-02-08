@@ -20,7 +20,7 @@ func (c *compactPost) string() string {
 	if len(tgstr) > 0 {
 		tgstr = tgstr[:len(tgstr)-1]
 	}
-	return fmt.Sprintf("{CPOST[%s, %s]}", c.Hash, tgstr)
+	return fmt.Sprintf("{CPOST[%s,%s]}", c.Hash, tgstr)
 }
 
 func (c *compactPost) set(vars ...interface{}) error {
@@ -32,7 +32,7 @@ func (c *compactPost) set(vars ...interface{}) error {
 	if !ok || len(hash) < 46 || len(hash) > 49 {
 		return fmt.Errorf("incorrect hash", hash)
 	}
-	c.Hash = hash
+	c.Hash = strings.TrimSpace(hash)
 
 	if len(vars) >= 2 {
 		for _, tag := range vars[1:] {
@@ -45,7 +45,7 @@ func (c *compactPost) set(vars ...interface{}) error {
 		}
 		// Sort?
 	}
-
+	//fmt.Println(c.Tags)
 	return nil
 }
 
@@ -72,11 +72,11 @@ func (c *compactPost) same(a crdtData) bool {
 	// }
 
 	// return c.Hash == a.(*compactPost).Hash
-	return c.id() == a.(*compactPost).id()
+	return c.id() == a.id()
 }
 
 func (c *compactPost) id() string {
-	return c.Hash
+	return strings.TrimSpace(c.Hash)
 }
 
 func (c *compactPost) smash(a crdtData) crdtData {

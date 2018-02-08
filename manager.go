@@ -58,19 +58,20 @@ func (m *idManager) listen(channel string) {
 			continue
 		}
 
-		cData := m.cmp(p.Data)
+		//cData := m.cmp(p.Data)
+		m.cmp(p.Data)
 
-		m.d.merge(&cData)
+		//m.d.merge(&cData)
 		m.publish(true)
 	}
 }
 
 func (m *idManager) cmp(hash string) data {
-	var cData data
+	//var cData data
 
 	s := m.ipfs.Cat(hash)
 	if s == "" {
-		return cData
+		return *m.d
 	}
 
 	// Data will look like this "{POST[Qm...,100]}{TAG[Qm...,tag]}"
@@ -111,6 +112,7 @@ func (m *idManager) cmp(hash string) data {
 		// 	}
 		// 	d = &t
 		case "CPOST":
+			//fmt.Println(dat)
 			var p compactPost
 			i := []interface{}{}
 			for _, m := range dat {
@@ -122,9 +124,10 @@ func (m *idManager) cmp(hash string) data {
 			}
 			d = &p
 		}
-		cData.data = append(cData.data, d)
+		//cData.data = append(cData.data, d)
+		m.d.add(d)
 	}
-	return cData
+	return *m.d
 }
 
 func (m *idManager) add(a ...crdtData) {

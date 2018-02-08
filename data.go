@@ -107,7 +107,10 @@ func (d *data) add(p crdtData) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
+	// fmt.Println("Add", p.string())
+	//fmt.Println(d.query(p), p.id())
 	if d.query(p) {
+		//fmt.Println("Smash")
 		d.smash(p)
 		return
 	}
@@ -117,6 +120,7 @@ func (d *data) add(p crdtData) {
 
 func (d *data) smash(a crdtData) {
 	for i, _ := range d.data {
+		//fmt.Println("!smashing", d.data[i].string(), a.string())
 		if d.data[i].same(a) {
 			d.data[i] = d.data[i].smash(a)
 		}
@@ -127,6 +131,7 @@ func (d *data) query(a crdtData) bool {
 	if d.data != nil {
 		for _, data := range d.data {
 			if data.same(a) {
+				//fmt.Println(data.id(), a.id())
 				return true
 			}
 		}
