@@ -74,57 +74,30 @@ func (m *idManager) cmp(hash string) data {
 		return *m.d
 	}
 
-	// Data will look like this "{POST[Qm...,100]}{TAG[Qm...,tag]}"
-	spl := strings.Split(s, "{")
-	for _, left := range spl {
+	// Data will look like "POST[Qm...,100]/TAG[QM...,tag]/CPOST[Qm...,tag1,tag2] "
+	for _, left := range strings.Split(s, "/") {
+		//fmt.Println(left)
+		if len(left) <= 0 {
+			continue
+		}
+
 		var d crdtData
-		if len(left) <= 0 || strings.Index(left, "}") == -1 {
+
+		d = Identify(left[:strings.Index(left, "[")])
+		data := left[strings.Index(left, "[")+1:]
+		data = data[:strings.LastIndex(data, "]")]
+		//fmt.Println(data)
+		i := []interface{}{}
+		for _, s := range strings.Split(data, ",") {
+			i = append(i, s)
+		}
+		//fmt.Println(i)
+		err := d.set(i...)
+		if err != nil {
+			log.Print(err)
 			continue
 		}
-		// dat := strings.Split(data[strings.Index(data, "[")+1:], ",")
-		data := strings.Split(left[:strings.Index(left, "}")-1], "[")
-		if len(data) < 2 {
-			continue
-		}
-		switch dat := strings.Split(data[1], ","); data[0] {
-		// case "POST":
-		// 	var p postData
-		// 	i, err := strconv.Atoi(dat[1])
-		// 	if err != nil {
-		// 		log.Print(err)
-		// 		continue
-		// 	}
-		// 	err = p.set(dat[0], i)
-		// 	if err != nil {
-		// 		log.Print(err)
-		// 		continue
-		// 	}
-		// 	d = &p
-		// case "TAG":
-		// 	if len(dat) < 2 || len(dat) > 2 {
-		// 		continue
-		// 	}
-		// 	var t tagData
-		// 	err := t.set(dat[0], dat[1])
-		// 	if err != nil {
-		// 		log.Print(err)
-		// 		continue
-		// 	}
-		// 	d = &t
-		case "CPOST":
-			//fmt.Println(dat)
-			var p compactPost
-			i := []interface{}{}
-			for _, m := range dat {
-				i = append(i, m)
-			}
-			if err := p.set(i...); err != nil {
-				log.Println(err)
-				continue
-			}
-			d = &p
-		}
-		//cData.data = append(cData.data, d)
+
 		m.d.add(d)
 	}
 	return *m.d
@@ -143,9 +116,14 @@ func (m *idManager) publish(checkNew bool) {
 		if d == nil {
 			continue
 		}
-		data += d.string()
+		data += d.string() + "/"
 	}
 	hash := m.ipfs.CreateObject(data)
+
+	if len(hash) < 46 {
+		log.Println("Hash invalid", hash)
+		return
+	}
 
 	if checkNew && hash == m.currentHash {
 		return

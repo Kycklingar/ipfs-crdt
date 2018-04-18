@@ -20,7 +20,7 @@ func (c *compactPost) string() string {
 	if len(tgstr) > 0 {
 		tgstr = tgstr[:len(tgstr)-1]
 	}
-	return fmt.Sprintf("{CPOST[%s,%s]}", c.Hash, tgstr)
+	return fmt.Sprintf("CPOST[%s,%s]", c.Hash, tgstr)
 }
 
 func (c *compactPost) set(vars ...interface{}) error {
@@ -99,4 +99,8 @@ func (c *compactPost) smash(a crdtData) crdtData {
 	}
 	c.Tags = append(c.Tags, appTags...)
 	return c
+}
+
+func init() {
+	RegisterCRDTData("CPOST", func() crdtData { return new(compactPost) })
 }

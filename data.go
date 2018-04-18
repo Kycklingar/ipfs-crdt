@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -14,6 +15,37 @@ type crdt interface {
 type data struct {
 	data  []crdtData
 	mutex sync.Mutex
+}
+
+type identifier struct {
+	m map[string]func() crdtData
+	l sync.RWMutex
+}
+
+var id identifier
+
+// Register a CRDTData creation function
+func RegisterCRDTData(name string, fn func() crdtData) error {
+	if id.m == nil {
+		id.m = make(map[string]func() crdtData)
+	}
+	id.l.Lock()
+	defer id.l.Unlock()
+	if _, ok := id.m[name]; ok {
+		return fmt.Errorf("Function already registered: %s", name)
+	}
+	id.m[name] = fn
+	return nil
+}
+
+// Identify the crdtData type and return a new
+func Identify(a string) crdtData {
+	id.l.RLock()
+	defer id.l.RUnlock()
+	if fn, ok := id.m[a]; ok {
+		return fn()
+	}
+	return nil
 }
 
 // type postData struct {

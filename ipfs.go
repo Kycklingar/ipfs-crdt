@@ -59,7 +59,7 @@ func NewIpfsObject(api string) (ipfs, error) {
 
 	ip.id = m["ID"].(string)
 
-	fmt.Println(ip.id)
+	fmt.Println("IPFS ID:", ip.id)
 	return ip, nil
 }
 

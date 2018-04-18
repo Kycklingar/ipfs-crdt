@@ -1,0 +1,31 @@
+<html>
+<head>
+    <title>{{.Channel}}</title>
+</head>
+<body>
+    <a href="/post">Post Hash</a>
+    <h1>CRDT Content</h1>
+    <h3>Channel {{.Channel}}</h3>
+    <h4>Current Hash: {{.Hash}}</h4>
+    <form action="/db/populate">
+        <input type="submit" value="Populate DB">
+    </form>
+    <ul>
+        {{range .Content}}
+            <li>
+                <div>
+                    <span><img width="250px" src="http://localhost:8080/ipfs/{{.Hash}}"></span>
+                    <p>{{.Size}}B</p>
+                    <span>
+                        <ul>
+                        {{range .Tags}}
+                            <li>{{.}}</li>
+                        {{end}}
+                        </ul>
+                    </span>
+                </div>
+            </li>
+        {{end}}
+    </ul>
+</body>
+</html>

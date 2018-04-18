@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -15,6 +16,30 @@ import (
 
 var idM *idManager
 var db *sql.DB
+
+var templates *template.Template
+
+func loadTemplates(path string) ([]string, error) {
+	paths, err := ioutil.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, p := range paths {
+		if p.IsDir() {
+			// fmt.Println(p.Name() + "/")
+			n, err := loadTemplates(path + "/" + p.Name())
+			if err != nil {
+				return nil, err
+			}
+			names = append(names, n...)
+		} else {
+			// fmt.Println(p.Name())
+			names = append(names, path+"/"+p.Name())
+		}
+	}
+	return names, nil
+}
 
 func main() {
 	log.SetFlags(log.Llongfile)
@@ -35,6 +60,15 @@ func main() {
 	idM.Init()
 	go idM.listen(*channel)
 
+	names, err := loadTemplates("templates")
+	if err != nil {
+		log.Fatal(err)
+	}
+	templates, err = templates.ParseFiles(names...)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	http.HandleFunc("/", indexHandler)
 	http.HandleFunc("/post", postHandler)
 	http.HandleFunc("/db/populate", populateDBHandler)
@@ -43,45 +77,6 @@ func main() {
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	html := `
-		<html>
-		<head>
-			<title>CRDT</title>
-		</head>
-		<body>
-			<a href="/post">Post Hash</a>
-			<h1>CRDT Content</h1>
-			<h3>Channel {{.Channel}}</h3>
-			<h4>Current Hash: {{.Hash}}</h4>
-			<form action="/db/populate">
-				<input type="submit" value="Populate DB">
-			</form>
-			<ul>
-				{{range .Content}}
-					<li>
-						<div>
-							<span><img width="250px" src="http://localhost:8080/ipfs/{{.Hash}}"></span>
-							<p>{{.Size}}B</p>
-							<span>
-								<ul>
-								{{range .Tags}}
-									<li>{{.}}</li>
-								{{end}}
-								</ul>
-							</span>
-						</div>
-					</li>
-				{{end}}
-			</ul>
-		</body>
-		</html>
-	`
-	tmpl, err := template.New("index").Parse(html)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	type p struct {
 		Hash    string
 		Channel string
@@ -93,27 +88,12 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, err)
 		return
 	}
-	tmpl.Execute(w, p{Hash: idM.currentHash, Channel: idM.ipfs.subject, Content: c})
+	templates.ExecuteTemplate(w, "index.html", p{Hash: idM.currentHash, Channel: idM.ipfs.subject, Content: c})
 }
 
 func postHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		fmt.Fprint(w, `
-			<html>
-				<head>
-					<title>CRDT ADD</title>
-				</head>
-				<body>
-					<form method="POST">
-						<p>hash</p>
-						<input type="text" name="hash">
-						<p>tags</p>
-						<input type="text" name="tags">
-						<input type="submit">
-					</form>
-				</body>
-			</html>
-		`)
+		templates.ExecuteTemplate(w, "post.html", nil)
 		return
 	}
 
@@ -158,6 +138,10 @@ func postHandler(w http.ResponseWriter, r *http.Request) {
 	idM.add(cd...)
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func testHandler(w http.ResponseWriter, r *http.Request) {
+	templates.ExecuteTemplate(w, "tag.html", nil)
 }
 
 func populateDBHandler(w http.ResponseWriter, r *http.Request) {

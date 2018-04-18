@@ -16,3 +16,4 @@ debug
 .vscode/
 *.sqlite3-journal
 *.sqlite3
+ipfs-crdt
