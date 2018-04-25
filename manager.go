@@ -30,7 +30,7 @@ func newManager() *idManager {
 func (m *idManager) Init() {
 	m.currentHash = DB.LatestHash(db)
 	data := m.cmp(m.currentHash)
-	m.d.merge(&data)
+	m.d.merge(data)
 }
 
 func (m *idManager) listen(channel string) {
@@ -66,12 +66,12 @@ func (m *idManager) listen(channel string) {
 	}
 }
 
-func (m *idManager) cmp(hash string) data {
+func (m *idManager) cmp(hash string) *data {
 	//var cData data
 
 	s := m.ipfs.Cat(hash)
 	if s == "" {
-		return *m.d
+		return m.d
 	}
 
 	// Data will look like "POST[Qm...,100]/TAG[QM...,tag]/CPOST[Qm...,tag1,tag2] "
@@ -84,14 +84,18 @@ func (m *idManager) cmp(hash string) data {
 		var d crdtData
 
 		d = Identify(left[:strings.Index(left, "[")])
+		if d == nil {
+			log.Println("unknown crdtData:", left)
+			continue
+		}
 		data := left[strings.Index(left, "[")+1:]
 		data = data[:strings.LastIndex(data, "]")]
-		//fmt.Println(data)
+
 		i := []interface{}{}
 		for _, s := range strings.Split(data, ",") {
 			i = append(i, s)
 		}
-		//fmt.Println(i)
+
 		err := d.set(i...)
 		if err != nil {
 			log.Print(err)
@@ -100,7 +104,7 @@ func (m *idManager) cmp(hash string) data {
 
 		m.d.add(d)
 	}
-	return *m.d
+	return m.d
 }
 
 func (m *idManager) add(a ...crdtData) {

@@ -71,6 +71,7 @@ func main() {
 
 	http.HandleFunc("/", indexHandler)
 	http.HandleFunc("/post", postHandler)
+	http.HandleFunc("/search/", searchHandler)
 	http.HandleFunc("/db/populate", populateDBHandler)
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", *port), nil))
@@ -138,6 +139,23 @@ func postHandler(w http.ResponseWriter, r *http.Request) {
 	idM.add(cd...)
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func searchHandler(w http.ResponseWriter, r *http.Request) {
+	var p struct {
+		Query string
+		Posts []DB.Post
+	}
+
+	p.Query = r.FormValue("tags")
+
+	var err error
+	p.Posts, err = DB.Search(p.Query, db)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	templates.ExecuteTemplate(w, "search.html", p)
 }
 
 func testHandler(w http.ResponseWriter, r *http.Request) {

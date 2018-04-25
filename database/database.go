@@ -37,7 +37,7 @@ func update(db *sql.DB) {
 		
 		CREATE TABLE IF NOT EXISTS tags(
 			id INTEGER PRIMARY KEY,
-			tag VARCHA(64) UNIQUE NOT NULL
+			tag VARCHAR(64) UNIQUE NOT NULL
 		);
 
 		CREATE TABLE IF NOT EXISTS post_tag_mapping(
@@ -79,7 +79,7 @@ func PostCount(db *sql.DB) int {
 
 func MappingsCount(db *sql.DB) int {
 	var count int
-	db.QueryRow("SELECT count(1) FROM post_tag_mapping").Scan(&count)
+	db.QueryRow("SELECT count() FROM post_tag_mapping").Scan(&count)
 	return count
 }
 
@@ -105,7 +105,7 @@ type Post struct {
 }
 
 func GetPosts(db *sql.DB) ([]Post, error) {
-	rows, err := db.Query("SELECT id, hash, size FROM posts")
+	rows, err := db.Query("SELECT id, hash FROM posts ORDER BY id DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func GetPosts(db *sql.DB) ([]Post, error) {
 	var posts []Post
 	for rows.Next() {
 		var p Post
-		err = rows.Scan(&p.ID, &p.Hash, &p.Size)
+		err = rows.Scan(&p.ID, &p.Hash)
 		if err != nil {
 			log.Print(err)
 			return nil, err
@@ -141,6 +141,45 @@ func GetPosts(db *sql.DB) ([]Post, error) {
 			p.Tags = append(p.Tags, tag)
 		}
 		posts = append(posts, p)
+	}
+	return posts, nil
+}
+
+func Search(tag string, db *sql.DB) ([]Post, error) {
+	query := `SELECT id, hash FROM posts WHERE id IN
+			(SELECT post_id FROM post_tag_mapping WHERE tag_id =
+			(SELECT id FROM tags WHERE tag = $1)) ORDER BY id DESC`
+	rows, err := db.Query(query, tag)
+	if err != nil {
+		return nil, err
+	}
+
+	var posts []Post
+	for rows.Next() {
+		var p Post
+		if err = rows.Scan(&p.ID, &p.Hash); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		posts = append(posts, p)
+	}
+	rows.Close()
+
+	for i := range posts {
+		rows, err := db.Query("SELECT tag FROM tags WHERE id IN(SELECT tag_id FROM post_tag_mapping WHERE post_id = $1) ORDER BY tag DESC", posts[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var t string
+			err = rows.Scan(&t)
+			if err != nil {
+				rows.Close()
+				return nil, err
+			}
+			posts[i].Tags = append(posts[i].Tags, t)
+		}
+		rows.Close()
 	}
 	return posts, nil
 }

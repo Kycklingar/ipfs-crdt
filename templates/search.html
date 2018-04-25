@@ -1,0 +1,16 @@
+{{define "searchbar"}}
+<form action="/search/">
+    <input type="text" name="tags">
+    <input type="submit" value="Search">
+</form>
+{{end}}
+
+<html>
+<head>
+    <title>{{.Query}}</title>
+</head>
+<body>
+    {{template "searchbar"}}
+    {{template "postlist" .Posts}}
+</body>
+</html>

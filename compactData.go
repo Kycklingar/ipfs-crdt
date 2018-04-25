@@ -102,5 +102,7 @@ func (c *compactPost) smash(a crdtData) crdtData {
 }
 
 func init() {
-	RegisterCRDTData("CPOST", func() crdtData { return new(compactPost) })
+	if err := RegisterCRDTData("CPOST", func() crdtData { return new(compactPost) }); err != nil {
+		log.Fatal(err)
+	}
 }
