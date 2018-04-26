@@ -1,0 +1,32 @@
+<html>
+    <head>
+        <title>test</title>
+        <style>
+            #posts img
+            {
+                max-width:250px;
+                max-height:250px;
+            }
+        </style>
+        <script src="crdt.js"></script>
+    </head>
+    <body>
+        <p>Requierments: go-ipfs daemon with --experimental-pubsub-enabled</p>
+        <p>ipfs config --json API.HTTPHeaders.Access-Control-Allow-Methods '["GET","POST"]'</p>
+        <p>ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin '["*"]'</p>
+        <h3>Javascript CRDT over IPFS</h3>
+        <form onsubmit="return submitNew()">
+            <label for="hash">Hash</label>
+            <input type="text" id="formHash" name="hash">
+            <label for="tags">Tags</label>
+            <input type="text" id="formTags" name="tags">
+            <input type="submit">
+        </form>
+        <form onsubmit="return ask()">
+            <label>Ask</label>
+            <input type="submit">
+        </form>
+        <div id="posts">
+        </div>
+    </body>
+</html>
