@@ -8,7 +8,7 @@ function subscribe(channel, callback)
 {
     var req = new XMLHttpRequest()
     var lastResponse = ""
-    var count = 0
+    //var count = 0
 
     req.onreadystatechange = function(){
         var resp = this.responseText.replace(lastResponse, "").trim()
@@ -16,7 +16,7 @@ function subscribe(channel, callback)
         //console.log(resp)
         if(resp.length > 10)
             {
-                console.log(++count)
+                //console.log(++count)
                 //resp = this.responseText
                 callback(function(){
                     // K
@@ -175,10 +175,16 @@ function query(obj, val)
 
 function add(obj, val)
 {
+    var data = []
     for(var i = 0; i < val.data.length; i++)
     {
-        val[i] = val[i].trim()
+        if(typeof val.data[i] != "string" || val.data[i] == "")
+        {
+            continue
+        }
+        data.push(val.data[i].trim())
     }
+    val.data = data
     var found = false
     for(var i = 0; i < obj.length; i++)
     {
@@ -240,7 +246,7 @@ function tostring(obj)
         {
             continue
         }
-        console.log(obj[i])
+        //console.log(obj[i])
         str += obj[i].type + "[" + obj[i].data.toString() + "]" + "/"
     }
     return str
@@ -303,7 +309,7 @@ setTimeout(function(){pb = document.getElementById("posts")}, 500)
 
 function makePost(post)
 {
-    console.log(post)
+    //console.log(post)
     var d = document.getElementById(post.Hash)
     if(d == null)
     {
