@@ -2,10 +2,21 @@
     <head>
         <title>test</title>
         <style>
-            #posts img
+            .post span, .post a
             {
                 max-width:250px;
                 max-height:250px;
+                word-wrap:break-word;
+            }
+            .post img
+            {
+                max-width:100%;
+            }
+            .post
+            {
+                display: flex;
+                border:ridge;
+                border-color:grey;
             }
         </style>
         <script src="crdt.js"></script>
@@ -23,8 +34,7 @@
             <input type="submit">
         </form>
         <form onsubmit="return ask()">
-            <label>Ask</label>
-            <input type="submit">
+            <input type="submit" value="Ask" title="Ask the network for new hashes">
         </form>
         <div id="posts">
         </div>

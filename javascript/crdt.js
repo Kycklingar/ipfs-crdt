@@ -40,7 +40,7 @@ function subscribe(channel, callback)
                 }())
         }
     }
-    req.open("GET", ipfsAPI + "pubsub/sub?arg=" + channel, true)
+    req.open("GET", ipfsAPI + "pubsub/sub?discover=true&arg=" + channel, true)
     req.send()
 }
 
@@ -313,11 +313,35 @@ function makePost(post)
     var d = document.getElementById(post.Hash)
     if(d == null)
     {
-        n = document.createElement("div")
-        n.id = post.Hash
-        n.appendChild(image("/ipfs/" + post.Hash))
-        n.appendChild(tags(post.Tags))
-        pb.appendChild(n)
+        var req = new XMLHttpRequest
+        req.onreadystatechange = function(){
+            if(this.readyState == 4 && this.status == 200)
+            {
+                n = document.createElement("div")
+                n.className = "post"
+                n.id = post.Hash
+
+                var ct = this.getResponseHeader("Content-Type")
+                if(ct.split("/")[0] == "image")
+                {
+                    n.appendChild(image("/ipfs/" + post.Hash))
+                }
+                else
+                {
+                    var a = document.createElement("a")
+                    a.href = "/ipfs/" + post.Hash
+                    var h4 = document.createElement("h4")
+                    h4.innerText = post.Hash
+                    a.appendChild(h4)
+                    n.appendChild(a)
+                }
+
+                n.appendChild(tags(post.Tags))
+                pb.appendChild(n)
+            }
+        }
+        req.open("GET", "/ipfs/" + post.Hash, true)
+        req.send()
     }
     else
     {
@@ -340,9 +364,11 @@ function tags(tags)
 
 function image(src)
 {
+    var span = document.createElement("span")
     var i = new Image()
     i.src = src
-    return i
+    span.appendChild(i)
+    return span
 }
 
 function submitNew()
