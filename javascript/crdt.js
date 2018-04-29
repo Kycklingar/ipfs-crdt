@@ -16,28 +16,15 @@ function subscribe(channel, callback)
         //console.log(resp)
         if(resp.length > 10)
             {
-                //console.log(++count)
-                //resp = this.responseText
-                callback(function(){
-                    // K
-                    //console.log(resp)
-                    // try
-                    // {
-                    //     var obj = JSON.parse(resp.substring(resp.indexOf("{"), resp.lastIndexOf("}")))
-                    //     obj = obj[obj.length-1]
-                    //     obj.data = atob(obj.data)
-                    //     console.log(obj.data)
-                    //     return obj.data
-                    // }
-                    // catch(e)
-                    // {
-                    //     console.log(resp, e)
-                    //     return ""
-                    // }
-                    var l = resp.substring(resp.indexOf("\"data\":"))
+                var msg = resp.split("\n")
+                //console.log(msg.length)
+                for(var i = 0; i < msg.length; i++)
+                {
+                    var l = msg[i].substring(msg[i].indexOf("\"data\":"))
                     l = l.substring("'data':'".length, l.indexOf(",") - 1)
-                    return atob(l)
-                }())
+                    var data = atob(l)
+                    callback(data)
+                }
         }
     }
     req.open("GET", ipfsAPI + "pubsub/sub?discover=true&arg=" + channel, true)
