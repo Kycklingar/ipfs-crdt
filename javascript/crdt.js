@@ -2,6 +2,23 @@
 // Expect heavy refactoring
 
 var ipfsAPI = "http://localhost:5001/api/v0/"
+
+
+{
+    if(typeof(Storage) !== "undefined")
+    {
+        var hash = localStorage.kycklingarCrdtCurrentHash
+        if(typeof(hash) !== "undefined")
+        {
+            compareData(hash)
+        }
+    }
+    else
+    {
+        console.log("Your browser does not support localStorage")
+    }
+}
+
 subscribe("test", compareData)
 
 function subscribe(channel, callback)
@@ -116,26 +133,7 @@ function compareData(hash)
             }
             if(differ)
             {
-                for(var i = 0; i < objects.length; i++)
-                {
-                    var tags = []
-                    for(var j = 1; j < objects[i].data.length; j++)
-                    {
-                        tags.push(objects[i].data[j])
-                    }
-                    makePost({"Hash":objects[i].data[0], "Tags":tags})
-                }
-
-                ipfsAdd(tostring(objects), function(resp){
-                    if(currHash != resp && resp.length > 40 && resp.length < 60)
-                    {
-                        ipfsPublish(resp, "test")
-                        currHash = resp
-                    }
-                    else{
-                        console.log("Current: ", currHash, "New: ", resp)
-                    }
-                })
+                publish(objects)
             }
         })
     }
@@ -292,10 +290,13 @@ function smash(left, right)
 }
 
 var pb = null
-setTimeout(function(){pb = document.getElementById("posts")}, 500)
 
 function makePost(post)
 {
+    if(pb == null)
+    {
+        pb = document.getElementById("posts")
+    }
     //console.log(post)
     var d = document.getElementById(post.Hash)
     if(d == null)
@@ -369,31 +370,39 @@ function submitNew()
 
     add(objects, newcdata("CPOST", a))
 
-    publish()
+    publish(objects)
 
     return false
 }
 
-function publish()
+var lock = false
+
+function publish(obj)
 {
-    for(var i = 0; i < objects.length; i++)
+    while(lock)
+    
+    lock = true
+    for(var i = 0; i < obj.length; i++)
     {
         var tags = []
-        for(var j = 1; j < objects[i].data.length; j++)
+        for(var j = 1; j < obj[i].data.length; j++)
         {
-            tags.push(objects[i].data[j])
+            tags.push(obj[i].data[j])
         }
-        makePost({"Hash":objects[i].data[0], "Tags":tags})
+        makePost({"Hash":obj[i].data[0], "Tags":tags})
     
-        ipfsAdd(tostring(objects), function(resp){
+        ipfsAdd(tostring(obj), function(resp){
             if(currHash != resp && resp.length > 40 && resp.length < 60)
             {
                 ipfsPublish(resp, "test")
                 currHash = resp
-            }
-            else{
-                console.log("Current: ", currHash, "New: ", resp)
+                
+                if(typeof(Storage) !== "undefined")
+                {
+                    localStorage.kycklingarCrdtCurrentHash = currHash
+                }
             }
         })
     }
+    lock = false
 }
