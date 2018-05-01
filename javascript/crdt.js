@@ -3,7 +3,6 @@
 
 var ipfsAPI = "http://localhost:5001/api/v0/"
 
-
 {
     if(typeof(Storage) !== "undefined")
     {
@@ -19,9 +18,9 @@ var ipfsAPI = "http://localhost:5001/api/v0/"
     }
 }
 
-subscribe("test", compareData)
+ipfsSubscribe("test", compareData)
 
-function subscribe(channel, callback)
+function ipfsSubscribe(channel, callback)
 {
     var req = new XMLHttpRequest()
     var lastResponse = ""
@@ -94,199 +93,32 @@ function ask()
 
 var currHash = ""
 
-function compareData(hash)
+function compareData(msg)
 {
-    console.log(hash)
-    if(hash.length <= 30)
+    console.log(msg)
+    if(msg.length <= 30)
     {
-        if(hash == "ASK" && currHash.length > 30)
+        if(msg == "ASK" && currHash.length > 30)
         {
             ipfsPublish(currHash, "test")
         }
         return
     }
-    if(currHash != hash)
+    if(currHash != msg)
     {
-        ipfsCat(hash, function(response){
+        ipfsCat(msg, function(response){
+            var obj = new Object()
             var spl = response.split("/")
-            var tb
             for(var i = 0; i < spl.length; i++)
             {
-                var n = spl[i].indexOf("[")
-                tb = cmp(newcdata(spl[i].substring(0, n), spl[i].substring(n+1, spl[i].length - 1).split(",")))
+                obj.AddStr(spl[i])
             }
-            var differ = false
-            if(tb.length == objects.length)
-            {
-                for(var i = 0; i < tb.length; i++)
-                {
-                    if(!query(objects, tb[i]))
-                    {
-                        differ = true
-                        break
-                    }
-                }
-            }
-            else
-            {
-                differ = true
-            }
-            if(differ)
-            {
-                publish(objects)
-            }
+
+            objects.Merge(obj)
+
+            objects.Publish()
         })
     }
-}
-
-function newcdata(type, data)
-{
-    return obj = {
-        "type":type,
-        "data":data
-    }
-}
-
-function query(obj, val)
-{
-    for(var i = 0; i < obj.length; i++)
-    {
-        if(!ccdata(obj[i], val))
-        {
-            return false
-        }
-    }
-}
-
-function add(obj, val)
-{
-    var data = []
-    for(var i = 0; i < val.data.length; i++)
-    {
-        if(typeof val.data[i] != "string" || val.data[i] == "")
-        {
-            continue
-        }
-        data.push(val.data[i].trim())
-    }
-    val.data = data
-    var found = false
-    for(var i = 0; i < obj.length; i++)
-    {
-        if(obj[i].data[0] == val.data[0])
-        {
-            found = true
-            obj[i].data = smash(obj[i].data, val.data)
-        }
-    }
-    if(!found)
-    {
-        obj.push(val)
-        //obj.push(newcdata(val.type, val.data))
-    }
-}
-
-function ccdata(left, right)
-{
-    if(left.type != right.type)
-    {
-       return false
-    }
-
-    if(left.data.length != right.data.length)
-    {
-        return false
-    }
-
-    if(left.data[0] != right.data[0])
-    {
-        return false
-    }
-
-    for(var i = 0; i < left.data.length; i++)
-    {
-        var found = false
-        for(var j = 0; j < right.data.length; j++)
-        {
-            if(left.data[i] == right.data[j])
-            {
-                found = true
-                break
-            }
-        }
-        if(!found)
-        {
-            return false
-        }
-    }
-    return true
-}
-
-function tostring(obj)
-{
-    var str = ""
-    for(var i = 0; i < obj.length; i++)
-    {
-        if(obj[i].length <= 0)
-        {
-            continue
-        }
-        //console.log(obj[i])
-        str += obj[i].type + "[" + obj[i].data.toString() + "]" + "/"
-    }
-    return str
-}
-
-var objects = []
-
-function cmp(obj)
-{
-    if(obj.type == "")
-    {
-        return objects
-    }
-    var newObj = objects
-
-    var found = false
-    for(var i = 0; i < objects.length; i++)
-    {
-        if(obj.type == objects[i].type)
-        {
-            if(obj.data[0] == objects[i].data[0])
-            {
-                found = true
-                newObj[i].data = smash(objects[i].data, obj.data)
-                break
-            }
-        }
-    }
-    if(!found)
-    {
-        newObj.push(obj)
-    }
-    return newObj
-}
-
-function smash(left, right)
-{
-    var retObj = left
-    for(var i = 1; i < right.length; i++)
-    {
-        var found = false
-        for(var j = 1; j < left.length; j++)
-        {
-            if(left[j] == right[i])
-            {
-                found = true
-                break
-            }
-        }
-        if(!found)
-        {
-            retObj.push(right[i])
-        }
-    }
-    return retObj
 }
 
 var pb = null
@@ -368,30 +200,136 @@ function submitNew()
     a.push(hash)
     a = a.concat(tags)
 
-    add(objects, newcdata("CPOST", a))
+    var c = new CPOST()
+    c.Set(a)
 
-    publish(objects)
+    objects.Add(c)
+
+    objects.Publish()
 
     return false
 }
 
-var lock = false
-
-function publish(obj)
+function Object()
 {
-    while(lock)
-    
-    lock = true
-    for(var i = 0; i < obj.length; i++)
+    this.data = []
+    this.lock = false
+
+    this.toString = function()
     {
-        var tags = []
-        for(var j = 1; j < obj[i].data.length; j++)
+        var str = ""
+        while(this.lock)
+        this.lock = true
+        for(var i = 0; i < this.data.length; i++)
         {
-            tags.push(obj[i].data[j])
+            if(this.data[i].length <= 0)
+            {
+                continue
+            }
+            str += this.data[i].toString() + "/"
+            //str += this.data[i].type + "[" + this.data[i].data.toString() + "]" + "/"
         }
-        makePost({"Hash":obj[i].data[0], "Tags":tags})
-    
-        ipfsAdd(tostring(obj), function(resp){
+        this.lock = false
+        return str
+    }
+
+    this.AddStr = function(str)
+    {
+        if(str == "")
+        {
+            return
+        }
+        var n = str.indexOf("[")
+        var cd = new getCRDTData(str.substring(0, n))
+        
+        cd.Set(
+            str.substring(
+                n+1,
+                str.length-1
+            ).split(",")
+        )
+
+        this.Add(cd)
+    }
+
+    this.Add = function(cdata)
+    {
+        while(this.lock)
+        this.lock = true
+
+        if(this.Query(cdata))
+        {
+            this.Smash(cdata)
+        }
+        else
+        {
+            this.data.push(cdata)
+        }
+
+        this.lock = false
+    }
+
+    this.Query = function(cdata)
+    {
+        for(var i = 0; i < this.data.length; i++)
+        {
+            if(this.data[i].Same(cdata))
+            {
+                return true
+            }
+        }
+        return false
+    }
+
+    this.Smash = function(cdata)
+    {
+        for(var i = 0; i < this.data.length; i++)
+        {
+            if(this.data[i].Same(cdata))
+            {
+                this.data[i].Smash(cdata)
+                return
+            }
+        }
+    }
+
+    this.Merge = function(obj)
+    {
+        while(this.lock)
+        this.lock = true
+        for(var i = 0; i < obj.data.length; i++)
+        {
+            var found = false
+            for(var j = 0; j < this.data.length; j++)
+            {
+                if(this.data[j].Same(obj.data[i]))
+                {
+                    found = true
+                    this.data[j].Smash(obj.data[i])
+                }
+            }
+            if(!found)
+            {
+                this.Add(obj.data[i])
+            }
+        }
+        this.lock = false
+    }
+
+    this.Publish = function()
+    {
+        while(this.lock)
+        this.lock = true
+
+        for(var i = 0; i < this.data.length; i++)
+        {
+            if(this.data[i].type == "CPOST")
+            {
+                makePost({"Hash":this.data[i].data[0], "Tags":this.data[i].data.slice(1)})
+            }
+        }
+
+        ipfsAdd(this.toString(), function(resp){
             if(currHash != resp && resp.length > 40 && resp.length < 60)
             {
                 ipfsPublish(resp, "test")
@@ -403,6 +341,170 @@ function publish(obj)
                 }
             }
         })
+
+        this.lock = false
     }
-    lock = false
+}
+
+var objects = new Object()
+
+function CRDTData()
+{
+    this.type = ""
+    this.data = []
+
+    this.toString = function()
+    {
+        return this.type + "[" + this.data.toString() + "]"
+    }
+
+    this.fromString = function(str)
+    {
+        // CPOST[Qmabcd...,tag1,tag2]
+        var n = str.indexOf("[")
+        this.type = str.substring(0, n)
+        this.Set(str.substring(n+1, str.length-1).split(","))
+    }
+
+    this.Same = function(cdata)
+    {
+        if(this.type != cdata.type)
+        {
+            return false
+        }
+        for(var i = 0; i < cdata.data.length; i++)
+        {
+            if(!this.Query(cdata[i]))
+            {
+                return false
+            }
+        }
+        return true
+    }
+
+    this.Smash = function(cdata)
+    {
+        if(
+            cdata.type != this.type ||
+            cdata.data.length <= 0 ||
+            this.data.length <= 0
+        )
+        {
+            return false
+        }
+
+        for(var i = 0; i < cdata.data.length; i++)
+        {
+            var found = false
+            for(var j = 0; j < this.data.length; j++)
+            {
+                if(cdata.data[i] == this.data[j])
+                {
+                    found = true
+                    break
+                }
+            }
+            if(!found)
+            {
+                this.data.push(cdata.data[i])
+            }
+        }
+        return true
+    }
+
+    this.Set = function(data)
+    {
+        if(data.length < 1)
+        {
+            return "data length < 1"
+        }
+        for(var i = 0; i < data.length; i++)
+        {
+            //console.log(data[i])
+            this.data.push(data[i].trim())
+        }
+    }
+
+    this.Query = function(val)
+    {
+        for(var i = 0; i < this.data.length; i++)
+        {
+            if(this.data[i] == val)
+            {
+                return tru
+            }
+        }
+        return false
+    }
+}
+
+function CPOST()
+{
+    CPOST.prototype = new CRDTData
+    this.type = "CPOST"
+
+    this.Smash = function(cdata)
+    {
+        if(
+            cdata.type != this.type || 
+            cdata.data.length <= 0 ||
+            this.data.length <= 0 ||
+            cdata.data[0] != this.data[0]
+        )
+        {
+            return 1
+        }
+
+        for(var i = 1; i < cdata.data.length; i++)
+        {
+            var found = false
+            for(var j = 1; j < this.data.length; j++)
+            {
+                if(cdata.data[i] == this.data[j])
+                {
+                    found = true
+                    break
+                }
+            }
+            if(!found)
+            {
+                this.data.push(cdata.data[i])
+            }
+        }
+        return 0
+    }
+
+    this.Same = function(cdata)
+    {
+        if(this.type != cdata.type)
+        {
+            return false
+        }
+
+        return this.data[0] == cdata.data[0]
+    }
+}
+CPOST.prototype = new CRDTData
+
+var CRDTMap = []
+
+registerCRDTData("CPOST", CPOST)
+
+function registerCRDTData(type, func)
+{
+    CRDTMap.push({"type":type, "func":func})
+}
+
+function getCRDTData(type)
+{
+    for(var i = 0; i < CRDTMap.length; i++)
+    {
+        if(CRDTMap[i].type == type)
+        {
+            return new CRDTMap[i].func()
+        }
+    }
+    var r = new CRDTData()
+    r.type = type
+    return r
 }
