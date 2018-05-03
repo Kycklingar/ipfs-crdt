@@ -1,6 +1,6 @@
-Try it out http://localhost:8080/ipfs/zdj7WbcZQ1TqtQnisHVEfFgpCiR1riF9w9uNwB8nPTgiGj4eY
+Try it out http://localhost:8080/ipfs/zdj7WdMJotxwoynbKU4PyFweFusKREFmXLUaJAGkgLUCqHsfk
 
-This is a quickly hacked together JS version of https://github.com/kycklingar/ipfs-crdt.
+This is a quickly hacked together JS version of https://github.com/kycklingar/ipfs-crdt
 
 Requirements:
 

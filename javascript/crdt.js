@@ -1,213 +1,154 @@
 // This is quickly hacked together js version of https://github.com/kycklingar/ipfs-crdt
-// Expect heavy refactoring
 
-var ipfsAPI = "http://localhost:5001/api/v0/"
+var Manager = new Manager("test")
 
+function Manager(channel, api="http://localhost:5001/api/v0/")
 {
+    this.CurrHash = ""
+
+    this.ReadMsg = (function(msg)
+    {
+        console.log(msg)
+        if(msg.length <= 30)
+        {
+            if(msg == "ASK" && this.CurrHash.length > 30)
+            {
+                this.Ipfs.Publish(this.CurrHash)
+            }
+            return
+        }
+        if(this.CurrHash != msg)
+        {
+            this.Ipfs.Cat(msg, this.buildObject)
+        }
+    }).bind(this)
+
+    this.buildObject = (function(response)
+    {
+        var obj = new Object()
+        var spl = response.split("/")
+        for(var i = 0; i < spl.length; i++)
+        {
+            obj.AddStr(spl[i])
+        }
+
+        this.Object.Merge(obj)
+        this.Publish()
+    }).bind(this)
+
+    this.Publish = (function()
+    {
+        this.Object.MakePosts()
+
+        this.Ipfs.Add(this.Object.toString(), (function(resp){
+            if(this.CurrHash != resp && resp.length > 40 && resp.length < 60)
+            {
+                this.Ipfs.Publish(resp)
+                this.CurrHash = resp
+                
+                if(typeof(Storage) !== "undefined")
+                {
+                    localStorage.setItem("kycklingarCrdtCurrentHash-" + this.Ipfs.channel, this.CurrHash)
+                    //localStorage.kycklingarCrdtCurrentHash = this.CurrHash
+                }
+            }
+        }).bind(this))
+    }).bind(this)
+
+    this.Ipfs = new Ipfs(channel, api)
+    this.Object = new Object()
+
     if(typeof(Storage) !== "undefined")
     {
-        var hash = localStorage.kycklingarCrdtCurrentHash
-        if(typeof(hash) !== "undefined")
+        let hash = localStorage.getItem("kycklingarCrdtCurrentHash-" + this.Ipfs.channel)
+        if(typeof(hash) === "string")
         {
-            compareData(hash)
+            this.CurrHash = hash
+            this.Ipfs.Cat(this.CurrHash, this.buildObject)
         }
     }
     else
     {
         console.log("Your browser does not support localStorage")
     }
+
+    this.Ipfs.Subscribe(this.ReadMsg)
+    setTimeout(this.Ipfs.Publish("ASK"), 500)
 }
 
-ipfsSubscribe("test", compareData)
-
-function ipfsSubscribe(channel, callback)
+function Ipfs(channel, api)
 {
-    var req = new XMLHttpRequest()
-    var lastResponse = ""
-    //var count = 0
+    this.channel = channel
+    this.API = api
 
-    req.onreadystatechange = function(){
-        var resp = this.responseText.replace(lastResponse, "").trim()
-        lastResponse = this.responseText
-        //console.log(resp)
-        if(resp.length > 10)
-            {
-                var msg = resp.split("\n")
-                //console.log(msg.length)
-                for(var i = 0; i < msg.length; i++)
+    this.Subscribe = function(callback)
+    {
+        if(this.channel == "")
+        {
+            console.log("Channel not specified")
+            return 
+        }
+        var req = new XMLHttpRequest()
+        var lastResponse = ""
+        //var count = 0
+    
+        req.onreadystatechange = function(){
+            var resp = this.responseText.replace(lastResponse, "").trim()
+            lastResponse = this.responseText
+            //console.log(resp)
+            if(resp.length > 10)
                 {
-                    var l = msg[i].substring(msg[i].indexOf("\"data\":"))
-                    l = l.substring("'data':'".length, l.indexOf(",") - 1)
-                    var data = atob(l)
-                    callback(data)
-                }
-        }
-    }
-    req.open("GET", ipfsAPI + "pubsub/sub?discover=true&arg=" + channel, true)
-    req.send()
-}
-
-function ipfsCat(hash, callback)
-{
-    var req = new XMLHttpRequest
-    req.onreadystatechange = function(){
-        if(this.readyState == 4 && this.status == 200)
-        {
-            callback(this.responseText)
-        }
-    }
-    req.open("GET", ipfsAPI + "cat?arg=" + hash, true)
-    req.send()
-}
-
-function ipfsAdd(string, callback)
-{
-    var req = new XMLHttpRequest
-    req.onreadystatechange = function(){
-        if(this.readyState == 4 && this.status == 200)
-        {
-            var j = JSON.parse(this.responseText)
-            callback(j.Hash)
-        }
-    }
-    var fd = new FormData()
-    var data = new Blob([string], {type: 'text/plain'});
-    fd.append("arg", data)
-    req.open("POST", ipfsAPI + "add?cid-version=1&pin=false&quieter=1", true)
-    req.send(fd)
-}
-
-function ipfsPublish(arg, channel)
-{
-    var req = new XMLHttpRequest
-    req.open("GET", ipfsAPI + "pubsub/pub?arg=" + channel + "&arg=" + arg, true)
-    req.send()
-}
-
-setTimeout(ask, 1000)
-function ask()
-{
-    ipfsPublish('ASK', 'test')
-    return false
-}
-
-var currHash = ""
-
-function compareData(msg)
-{
-    console.log(msg)
-    if(msg.length <= 30)
-    {
-        if(msg == "ASK" && currHash.length > 30)
-        {
-            ipfsPublish(currHash, "test")
-        }
-        return
-    }
-    if(currHash != msg)
-    {
-        ipfsCat(msg, function(response){
-            var obj = new Object()
-            var spl = response.split("/")
-            for(var i = 0; i < spl.length; i++)
-            {
-                obj.AddStr(spl[i])
+                    var msg = resp.split("\n")
+                    //console.log(msg.length)
+                    for(var i = 0; i < msg.length; i++)
+                    {
+                        var l = msg[i].substring(msg[i].indexOf("\"data\":"))
+                        l = l.substring("'data':'".length, l.indexOf(",") - 1)
+                        var data = atob(l)
+                        callback(data)
+                    }
             }
-
-            objects.Merge(obj)
-
-            objects.Publish()
-        })
+        }
+        req.open("GET", this.API + "pubsub/sub?discover=true&arg=" + this.channel, true)
+        req.send()
     }
-}
 
-var pb = null
-
-function makePost(post)
-{
-    if(pb == null)
-    {
-        pb = document.getElementById("posts")
-    }
-    //console.log(post)
-    var d = document.getElementById(post.Hash)
-    if(d == null)
+    this.Cat = function(hash, callback)
     {
         var req = new XMLHttpRequest
         req.onreadystatechange = function(){
             if(this.readyState == 4 && this.status == 200)
             {
-                n = document.createElement("div")
-                n.className = "post"
-                n.id = post.Hash
-
-                var ct = this.getResponseHeader("Content-Type")
-                if(ct.split("/")[0] == "image")
-                {
-                    n.appendChild(image("/ipfs/" + post.Hash))
-                }
-                else
-                {
-                    var a = document.createElement("a")
-                    a.href = "/ipfs/" + post.Hash
-                    var h4 = document.createElement("h4")
-                    h4.innerText = post.Hash
-                    a.appendChild(h4)
-                    n.appendChild(a)
-                }
-
-                n.appendChild(tags(post.Tags))
-                pb.appendChild(n)
+                callback(this.responseText)
             }
         }
-        req.open("GET", "/ipfs/" + post.Hash, true)
+        req.open("GET", this.API + "cat?arg=" + hash, true)
         req.send()
     }
-    else
+
+    this.Add = function(string, callback)
     {
-        d.removeChild(d.getElementsByTagName("ul")[0])
-        d.appendChild(tags(post.Tags))
+        var req = new XMLHttpRequest
+        req.onreadystatechange = function(){
+            if(this.readyState == 4 && this.status == 200)
+            {
+                var j = JSON.parse(this.responseText)
+                callback(j.Hash)
+            }
+        }
+        var fd = new FormData()
+        var data = new Blob([string], {type: 'text/plain'});
+        fd.append("arg", data)
+        req.open("POST", this.API + "add?cid-version=1&pin=false&quieter=1", true)
+        req.send(fd)
     }
-}
 
-function tags(tags)
-{
-    var ul = document.createElement("ul")
-    for(var i = 0; i < tags.length; i++)
+    this.Publish = function(arg)
     {
-        var li = document.createElement("li")
-        li.innerText = tags[i]
-        ul.appendChild(li)
+        var req = new XMLHttpRequest
+        req.open("GET", this.API + "pubsub/pub?arg=" + this.channel + "&arg=" + arg, true)
+        req.send()
     }
-    return ul
-}
-
-function image(src)
-{
-    var span = document.createElement("span")
-    var i = new Image()
-    i.src = src
-    span.appendChild(i)
-    return span
-}
-
-function submitNew()
-{
-    var hash = document.getElementById("formHash").value
-    var tags = document.getElementById("formTags").value.split(",")
-
-    var a = []
-    a.push(hash)
-    a = a.concat(tags)
-
-    var c = new CPOST()
-    c.Set(a)
-
-    objects.Add(c)
-
-    objects.Publish()
-
-    return false
 }
 
 function Object()
@@ -218,7 +159,7 @@ function Object()
     this.toString = function()
     {
         var str = ""
-        while(this.lock)
+        while(this.lock){}
         this.lock = true
         for(var i = 0; i < this.data.length; i++)
         {
@@ -254,7 +195,7 @@ function Object()
 
     this.Add = function(cdata)
     {
-        while(this.lock)
+        while(this.lock){}
         this.lock = true
 
         if(this.Query(cdata))
@@ -295,8 +236,6 @@ function Object()
 
     this.Merge = function(obj)
     {
-        while(this.lock)
-        this.lock = true
         for(var i = 0; i < obj.data.length; i++)
         {
             var found = false
@@ -313,12 +252,11 @@ function Object()
                 this.Add(obj.data[i])
             }
         }
-        this.lock = false
     }
 
-    this.Publish = function()
+    this.MakePosts = function()
     {
-        while(this.lock)
+        while(this.lock){}
         this.lock = true
 
         for(var i = 0; i < this.data.length; i++)
@@ -328,25 +266,9 @@ function Object()
                 makePost({"Hash":this.data[i].data[0], "Tags":this.data[i].data.slice(1)})
             }
         }
-
-        ipfsAdd(this.toString(), function(resp){
-            if(currHash != resp && resp.length > 40 && resp.length < 60)
-            {
-                ipfsPublish(resp, "test")
-                currHash = resp
-                
-                if(typeof(Storage) !== "undefined")
-                {
-                    localStorage.kycklingarCrdtCurrentHash = currHash
-                }
-            }
-        })
-
         this.lock = false
     }
 }
-
-var objects = new Object()
 
 function CRDTData()
 {
@@ -507,4 +429,98 @@ function getCRDTData(type)
     var r = new CRDTData()
     r.type = type
     return r
+}
+
+var pb = null
+
+function makePost(post)
+{
+    if(pb == null)
+    {
+        pb = document.getElementById("posts")
+    }
+    //console.log(post)
+    var d = document.getElementById(post.Hash)
+    if(d == null)
+    {
+        var req = new XMLHttpRequest
+        req.onreadystatechange = function(){
+            if(this.readyState == 4 && this.status == 200)
+            {
+                n = document.createElement("div")
+                n.className = "post"
+                n.id = post.Hash
+
+                var ct = this.getResponseHeader("Content-Type")
+                if(ct.split("/")[0] == "image")
+                {
+                    n.appendChild(image("/ipfs/" + post.Hash))
+                }
+                else
+                {
+                    var a = document.createElement("a")
+                    a.href = "/ipfs/" + post.Hash
+                    var h4 = document.createElement("h4")
+                    h4.innerText = post.Hash
+                    a.appendChild(h4)
+                    n.appendChild(a)
+                }
+
+                n.appendChild(tags(post.Tags))
+                pb.appendChild(n)
+            }
+        }
+        req.open("GET", "/ipfs/" + post.Hash, true)
+        req.send()
+    }
+    else
+    {
+        d.removeChild(d.getElementsByTagName("ul")[0])
+        d.appendChild(tags(post.Tags))
+    }
+}
+
+function tags(tags)
+{
+    var ul = document.createElement("ul")
+    for(var i = 0; i < tags.length; i++)
+    {
+        var li = document.createElement("li")
+        li.innerText = tags[i]
+        ul.appendChild(li)
+    }
+    return ul
+}
+
+function image(src)
+{
+    var span = document.createElement("span")
+    var i = new Image()
+    i.src = src
+    span.appendChild(i)
+    return span
+}
+
+function submitNew()
+{
+    if(Manager == null)
+    {
+        console.log("Initialize a manager")
+        return
+    }
+
+    var hash = document.getElementById("formHash").value
+    var tags = document.getElementById("formTags").value.split(",")
+
+    var a = []
+    a.push(hash)
+    a = a.concat(tags)
+
+    var c = new CPOST()
+    c.Set(a)
+
+    Manager.Object.Add(c)
+    Manager.Publish()
+
+    return false
 }
