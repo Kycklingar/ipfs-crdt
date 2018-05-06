@@ -440,37 +440,38 @@ function makePost(post)
         pb = document.getElementById("posts")
     }
     //console.log(post)
+
     var d = document.getElementById(post.Hash)
     if(d == null)
     {
+        var n = document.createElement("div")
+        n.className = "post"
+        n.id = post.Hash
+
+        var a = document.createElement("a")
+        a.href = "/ipfs/" + post.Hash
+        a.target = "_blank"
+        var h4 = document.createElement("h4")
+        h4.innerText = post.Hash
+        a.appendChild(h4)
+        n.appendChild(a)
+
+        n.appendChild(tags(post.Tags))
+        pb.appendChild(n)
+        
         var req = new XMLHttpRequest
         req.onreadystatechange = function(){
             if(this.readyState == 4 && this.status == 200)
             {
-                n = document.createElement("div")
-                n.className = "post"
-                n.id = post.Hash
-
                 var ct = this.getResponseHeader("Content-Type")
                 if(ct.split("/")[0] == "image")
                 {
-                    n.appendChild(image("/ipfs/" + post.Hash))
+                    b = image("/ipfs/" + post.Hash)
+                    n.children[0].replaceChild(b, n.children[0].children[0])
                 }
-                else
-                {
-                    var a = document.createElement("a")
-                    a.href = "/ipfs/" + post.Hash
-                    var h4 = document.createElement("h4")
-                    h4.innerText = post.Hash
-                    a.appendChild(h4)
-                    n.appendChild(a)
-                }
-
-                n.appendChild(tags(post.Tags))
-                pb.appendChild(n)
             }
         }
-        req.open("GET", "/ipfs/" + post.Hash, true)
+        req.open("HEAD", "/ipfs/" + post.Hash, true)
         req.send()
     }
     else
@@ -494,11 +495,9 @@ function tags(tags)
 
 function image(src)
 {
-    var span = document.createElement("span")
     var i = new Image()
     i.src = src
-    span.appendChild(i)
-    return span
+    return i
 }
 
 function submitNew()
