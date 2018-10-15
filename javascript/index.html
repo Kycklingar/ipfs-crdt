@@ -10,13 +10,21 @@
             }
             .post img
             {
-                max-width:100%;
+                max-width: 100%;
+                max-height: 100%;
             }
             .post
             {
                 display: flex;
                 border:ridge;
                 border-color:grey;
+            }
+            #searchResults
+            {
+                background-color:grey;
+                border:ridge;
+                padding:1em;
+                position:relative;
             }
         </style>
         <script src="crdt.js"></script>
@@ -33,9 +41,15 @@
             <input type="text" id="formTags" name="tags">
             <input type="submit">
         </form>
-        <form onsubmit="return ask()">
+        <form onsubmit="Manager.Ask(); return false">
             <input type="submit" value="Ask" title="Ask the network for new hashes">
         </form>
+        <form onsubmit="Manager.Search(this.children[0].value); return false">
+            <input type="text">
+            <input type="submit" value="Search">
+        </form>
+        <div id="searchResults" style="display:none;">
+        </div>
         <div id="posts">
         </div>
     </body>
