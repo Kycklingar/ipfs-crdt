@@ -34,6 +34,11 @@
         <p>ipfs config --json API.HTTPHeaders.Access-Control-Allow-Methods '["GET","POST"]'</p>
         <p>ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin '["*"]'</p>
         <h3>Javascript CRDT over IPFS</h3>
+        <form onsubmit="mngr = new Manager(this.channel.value); return false">
+            <label>Channel</label>
+            <input type="text" name="channel" value="test">
+            <input type="submit">
+        </form>
         <form onsubmit="return submitNew()">
             <label for="hash">Hash</label>
             <input type="text" id="formHash" name="hash">
@@ -41,10 +46,10 @@
             <input type="text" id="formTags" name="tags">
             <input type="submit">
         </form>
-        <form onsubmit="Manager.Ask(); return false">
+        <form onsubmit="mngr.Ask(); return false">
             <input type="submit" value="Ask" title="Ask the network for new hashes">
         </form>
-        <form onsubmit="Manager.Search(this.children[0].value); return false">
+        <form onsubmit="mngr.Search(this.children[0].value); return false">
             <input type="text">
             <input type="submit" value="Search">
         </form>

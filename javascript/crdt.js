@@ -1,6 +1,6 @@
 // This is quickly hacked together js version of https://github.com/kycklingar/ipfs-crdt
 
-var Manager = new Manager("test")
+let mngr = new Manager("test")
 
 function Manager(channel, api="http://localhost:5001/api/v0/")
 {
@@ -90,6 +90,10 @@ function Manager(channel, api="http://localhost:5001/api/v0/")
     {
         console.log("Your browser does not support localStorage")
     }
+
+    document.title = channel
+    
+    clearPosts()
 
     this.Ipfs.Subscribe(this.ReadMsg)
     setTimeout(this.Ipfs.Publish("ASK"), 500)
@@ -592,7 +596,7 @@ function image(src)
 
 function submitNew()
 {
-    if(Manager == null)
+    if(mngr == null)
     {
         console.log("Initialize a manager")
         return
@@ -608,16 +612,30 @@ function submitNew()
     var c = new CPOST()
     c.Set(a)
 
-    Manager.Object.Add(c)
-    Manager.Publish()
+    mngr.Object.Add(c)
+    mngr.Publish()
 
     return false
 }
 
 function removeChilds(parent)
 {
+    if(parent == null){
+        return
+    }
+
     while(parent.children.length > 0)
     {
         parent.removeChild(parent.children[0])
     }
+}
+
+function clearPosts()
+{
+    if(pb == null)
+    {
+        pb = document.getElementById("posts")
+    }
+
+    removeChilds(pb)
 }

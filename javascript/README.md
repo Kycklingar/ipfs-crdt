@@ -1,4 +1,4 @@
-Try it out http://localhost:8080/ipfs/zdj7Wi1c7PyJKxspeaGtFu3RajJ7S5ViR12VQ4N6EZNsqaA4r
+Try it out http://localhost:8080/ipfs/zdj7WkxxjaHr7sGdGmnjSntphHtRxHBZr7nn85d64jeYrAHEB
 
 This is a quickly hacked together JS version of https://github.com/kycklingar/ipfs-crdt
 
