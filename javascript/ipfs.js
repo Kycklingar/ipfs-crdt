@@ -31,7 +31,7 @@ function Ipfs(channel, api)
                     }
             }
         }
-        req.open("GET", this.API + "pubsub/sub?discover=true&arg=" + this.channel, true)
+        req.open("POST", this.API + "pubsub/sub?discover=true&arg=" + this.channel, true)
         req.send()
     }
 
@@ -44,7 +44,7 @@ function Ipfs(channel, api)
                 callback(this.responseText)
             }
         }
-        req.open("GET", this.API + "cat?arg=" + hash, true)
+        req.open("POST", this.API + "cat?arg=" + hash, true)
         req.send()
     }
 
@@ -68,7 +68,7 @@ function Ipfs(channel, api)
     this.Publish = function(arg)
     {
         var req = new XMLHttpRequest
-        req.open("GET", this.API + "pubsub/pub?arg=" + this.channel + "&arg=" + arg, true)
+        req.open("POST", this.API + "pubsub/pub?arg=" + this.channel + "&arg=" + arg, true)
         req.send()
     }
 }
